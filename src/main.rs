@@ -54,13 +54,19 @@ async fn perform_request(
     for interface_to_handle in interfaces_to_handle {
         let output = if options.prepend_sudo {
             Command::new("sudo")
+                .arg("docker")
+                .arg("exec")
+                .arg("wireguard")
                 .arg("wg")
                 .arg("show")
                 .arg(&interface_to_handle)
                 .arg("dump")
                 .output()?
         } else {
-            Command::new("wg")
+            Command::new("docker")
+                .arg("exec")
+                .arg("wireguard")
+                .arg("wg")
                 .arg("show")
                 .arg(&interface_to_handle)
                 .arg("dump")
