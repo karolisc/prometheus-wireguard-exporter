@@ -8,7 +8,7 @@ mod options;
 use options::Options;
 mod wireguard;
 use std::convert::TryFrom;
-use std::process::Command;
+use std::process::{Command,Output};
 mod friendly_description;
 pub use friendly_description::*;
 use wireguard::WireGuard;
@@ -18,6 +18,7 @@ use prometheus_exporter_base::render_prometheus;
 use std::net::IpAddr;
 use std::sync::Arc;
 use wireguard_config::peer_entry_hashmap_try_from;
+use std::str;
 
 async fn perform_request(
     _req: Request<Body>,
@@ -52,26 +53,50 @@ async fn perform_request(
     let mut wg_accumulator: Option<WireGuard> = None;
 
     for interface_to_handle in interfaces_to_handle {
-        let output = if options.prepend_sudo {
+        let output = if let Some(ref container_name) = options.container_name {
             Command::new("sudo")
                 .arg("docker")
                 .arg("exec")
-                .arg("wireguard")
+                .arg(container_name)
+                .arg("wg")
+                .arg("show")
+                .arg(&interface_to_handle)
+                .arg("dump")
+                .output()?
+        } else if options.prepend_sudo {
+            Command::new("sudo")
                 .arg("wg")
                 .arg("show")
                 .arg(&interface_to_handle)
                 .arg("dump")
                 .output()?
         } else {
-            Command::new("docker")
-                .arg("exec")
-                .arg("wireguard")
-                .arg("wg")
+            Command::new("wg")
                 .arg("show")
                 .arg(&interface_to_handle)
                 .arg("dump")
                 .output()?
         };
+
+        // if let Some(ref container_name) = options.container_name {
+        //     let out: Output = Command::new("docker")
+        //             .arg("exec")
+        //             .arg(container_name)
+        //             .arg("wg")
+        //             .arg("show")
+        //             .arg(&interface_to_handle)
+        //             .arg("dump")
+        //             .output()
+        //             .expect("Failed to execute command");
+
+        //     if out.status.success() {
+        //         let stdout = str::from_utf8(&out.stdout).unwrap();
+        //         println!("Command succeeded with out:\n{}", stdout);
+        //     } else {
+        //         let stderr = str::from_utf8(&out.stderr).unwrap();
+        //         eprintln!("Command failed with error:\n{}", stderr);
+        //     }
+        // }
 
         let output_stdout_str = String::from_utf8(output.stdout)?;
         trace!(
@@ -200,6 +225,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .value_parser(value_parser!(bool))
                 .help("exports runtime calculated latest handshake delay")
                 .default_value("false")
+        )
+        .arg(
+            Arg::new("container_name")
+                .long("container_name")
+                .num_args(0..)
+                .env("PROMETHEUS_WIREGUARD_EXPORTER_CONTAINER_NAME")
+                .help("name of a conteiner in which wireguard is running")
+                .use_value_delimiter(false)
         )
          .get_matches();
 

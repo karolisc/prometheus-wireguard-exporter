@@ -322,6 +322,30 @@ If you're interested in more hardening, you can analyze the unit with:
 systemd-analyze security prometheus-wireguard-exporter.service
 ```
 
+### Sibling docker container
+
+In case of running wireguard in a Docker container you might want to run this exporter as a docker container as well. In this case slightly modified target image is required - `sibling-container` in `Dockerfile`.
+
+See example compose configuration below.
+
+
+```yaml
+# docker-compose.yml
+services:
+  prometheus_wireguard_exporter:
+    build: 
+      context: .
+      target: sibling-container
+    container_name: prometheus-wireguard-exporter
+    # environment:
+    #   - PROMETHEUS_WIREGUARD_EXPORTER_CONFIG_FILE_NAMES=/etc/wg0.conf # optional
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro # allow access to host docker from the container
+      # - ./some/local/path/wg0.conf:/etc/wg0.conf:ro # optional
+    ports:
+      - 9586:9586
+```
+
 ## Development
 
 ### Locally
