@@ -1,4 +1,4 @@
-ARG BUILDPLATFORM=linux/amd64
+ARG BUILDPLATFORM
 
 ARG ALPINE_VERSION=3.14
 ARG RUST_VERSION=1.80.1-bookworm
@@ -118,7 +118,7 @@ RUN description="$(file /tmp/binary)" && \
       echo "binary is not statically built!" && exit 1; \
     fi
 
-FROM docker:27.2.0-alpine3.20 AS sibling-container
+FROM --platform=${BUILDPLATFORM} docker:27.2.0-alpine3.20 AS sibling-container
 WORKDIR /usr/local/bin
 
 USER root
@@ -129,7 +129,7 @@ RUN apk add --update -q --no-cache wireguard-tools-wg sudo
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/prometheus_wireguard_exporter"]
 COPY --from=build --chown=prometheus-wireguard-exporter /tmp/binary ./prometheus_wireguard_exporter
 
-FROM alpine:${ALPINE_VERSION} AS regular
+FROM --platform=${BUILDPLATFORM} alpine:${ALPINE_VERSION} AS regular
 EXPOSE 9586/tcp
 WORKDIR /usr/local/bin
 RUN apk add --no-cache --q tini && \
